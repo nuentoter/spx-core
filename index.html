@@ -1,1 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPX Clean Core</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0b0f14;
+      overflow: hidden;
+      color: white;
+      font-family: monospace;
+    }
+    canvas {
+      display: block;
+    }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 12px;
+      background: rgba(0,0,0,0.4);
+      padding: 8px;
+    }
+  </style>
+</head>
+<body>
 
+<canvas id="c"></canvas>
+<div id="hud"></div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const SIZE = 20;
+
+// --------------------
+// WORLD STATE
+// --------------------
+
+const world = {
+  wolf_1: { x: 5, y: 5, type: "wolf", energy: 10 },
+  deer_1: { x: 15, y: 10, type: "deer", energy: 10 },
+  deer_2: { x: 20, y: 12, type: "deer", energy: 10 }
+};
+
+// --------------------
+// LOGIC
+// --------------------
+
+function dist(a, b) {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function moveToward(a, b) {
+  if (a.x < b.x) a.x++;
+  else if (a.x > b.x) a.x--;
+
+  if (a.y < b.y) a.y++;
+  else if (a.y > b.y) a.y--;
+}
+
+function moveRandom(a) {
+  const r = Math.floor(Math.random() * 4);
+  if (r === 0) a.x++;
+  if (r === 1) a.x--;
+  if (r === 2) a.y++;
+  if (r === 3) a.y--;
+}
+
+// --------------------
+// UPDATE LOOP
+// --------------------
+
+function update() {
+
+  const wolves = [];
+  const deer = [];
+
+  for (const id in world) {
+    const e = world[id];
+    if (e.type === "wolf") wolves.push(e);
+    if (e.type === "deer") deer.push(e);
+  }
+
+  for (const w of wolves) {
+
+    let closest = null;
+    let best = 999;
+
+    for (const d of deer) {
+      const d0 = dist(w, d);
+      if (d0 < best) {
+        best = d0;
+        closest = d;
+      }
+    }
+
+    if (closest) {
+      moveToward(w, closest);
+
+      if (best < 2) {
+        closest.energy -= 1;
+        w.energy += 2;
+      }
+    } else {
+      moveRandom(w);
+    }
+
+    w.energy -= 0.05;
+  }
+
+  for (const d of deer) {
+    moveRandom(d);
+    d.energy -= 0.02;
+  }
+
+  for (const id in world) {
+    if (world[id].energy <= 0) {
+      delete world[id];
+    }
+  }
+}
+
+// --------------------
+// RENDER
+// --------------------
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (const id in world) {
+    const e = world[id];
+
+    ctx.fillStyle = e.type === "wolf" ? "red" : "green";
+    ctx.beginPath();
+    ctx.arc(e.x * SIZE, e.y * SIZE, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "white";
+    ctx.fillText(id, e.x * SIZE + 6, e.y * SIZE);
+  }
+
+  document.getElementById("hud").innerText =
+    "Entities: " + Object.keys(world).length;
+}
+
+// --------------------
+// LOOP
+// --------------------
+
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
