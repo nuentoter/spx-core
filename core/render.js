@@ -13,7 +13,7 @@ const Render = {
     ctx.scale(Camera.zoom, Camera.zoom);
     ctx.translate(-Camera.x, -Camera.y);
 
-    // grid
+    // terrain
     for (let x = 0; x < world.width; x++) {
       for (let y = 0; y < world.height; y++) {
 
@@ -25,6 +25,16 @@ const Render = {
         ctx.fillStyle = edge ? "#0b2a3a" : "#0f3d2e";
         ctx.fillRect(x * SIZE, y * SIZE, SIZE, SIZE);
       }
+    }
+
+    // plants
+    for (const id in world.plants) {
+      const p = world.plants[id];
+
+      ctx.fillStyle = "#66ff66";
+      ctx.beginPath();
+      ctx.arc(p.x * SIZE, p.y * SIZE, 2 + p.biomass * 0.6, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // entities
@@ -40,7 +50,9 @@ const Render = {
     ctx.restore();
 
     document.getElementById("hud").innerText =
-      `Entities: ${Object.keys(world.entities).length}`;
+      `Wolves: ${Object.values(world.entities).filter(e=>e.type==="wolf").length}
+Deer: ${Object.values(world.entities).filter(e=>e.type==="deer").length}
+Plants: ${Object.keys(world.plants).length}`;
   }
 };
 
