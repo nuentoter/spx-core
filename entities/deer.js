@@ -4,7 +4,6 @@ export function createDeer(x, y) {
     y,
     type: "deer",
     energy: 12,
-
     genes: {
       speed: 1,
       vision: 6,
