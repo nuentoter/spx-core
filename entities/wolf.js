@@ -4,7 +4,6 @@ export function createWolf(x, y) {
     y,
     type: "wolf",
     energy: 12,
-
     genes: {
       speed: 1,
       vision: 8,
