@@ -1,9 +1,3 @@
-import { createWolf } from "./wolf.js";
-import { createDeer } from "./deer.js";
-import { createPlant } from "./plant.js";
-
-export {
-  createWolf,
-  createDeer,
-  createPlant
-};
+export { createWolf } from "./wolf.js";
+export { createDeer } from "./deer.js";
+export { createPlant } from "./plant.js";
