@@ -3,10 +3,8 @@ export function createPlant(x, y) {
     x,
     y,
     type: "plant",
-
     biomass: 5,
     maxBiomass: 10,
-
     growthRate: 0.03
   };
 }
