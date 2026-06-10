@@ -51,7 +51,7 @@ canvas.addEventListener("pointermove", (e) => {
 
   if (arr.length === 2) {
     const d = Math.hypot(
-      arr[0].x - arr[0].x,
+      arr[0].x - arr[1].x,
       arr[0].y - arr[1].y
     );
 
