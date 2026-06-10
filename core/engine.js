@@ -7,33 +7,41 @@ const Engine = {
   moveToward(a, b) {
     if (a.x < b.x) a.x++;
     else if (a.x > b.x) a.x--;
-
     if (a.y < b.y) a.y++;
     else if (a.y > b.y) a.y--;
   },
 
   moveRandom(a) {
     const r = Math.floor(Math.random() * 4);
-
     if (r === 0) a.x++;
     if (r === 1) a.x--;
     if (r === 2) a.y++;
     if (r === 3) a.y--;
   },
 
-  getVisible(entity, list) {
-    return list.filter(t =>
-      this.dist(entity, t) <= entity.genes.vision
-    );
+  eatPlant(deer, world) {
+    for (const id in world.plants) {
+      const p = world.plants[id];
+
+      if (this.dist(deer, p) < 2) {
+        const bite = Math.min(1, p.biomass);
+        p.biomass -= bite;
+        deer.energy += bite * 3;
+        return;
+      }
+    }
   },
 
   update(world) {
 
-    if (world.food.length < 120 && Math.random() < 0.3) {
-      world.food.push({
-        x: (Math.random() * world.width) | 0,
-        y: (Math.random() * world.height) | 0
-      });
+    // -------------------
+    // PLANT GROWTH
+    // -------------------
+    for (const id in world.plants) {
+      const p = world.plants[id];
+      if (p.biomass < p.maxBiomass) {
+        p.biomass += p.growthRate;
+      }
     }
 
     const wolves = [];
@@ -45,15 +53,17 @@ const Engine = {
       if (e.type === "deer") deer.push(e);
     }
 
-    // wolves
+    // -------------------
+    // WOLVES
+    // -------------------
     for (const w of wolves) {
-
-      const visible = this.getVisible(w, deer);
-
       let target = null;
+      let best = 999;
 
-      for (const d of visible) {
-        if (!target || this.dist(w, d) < this.dist(w, target)) {
+      for (const d of deer) {
+        const dist = this.dist(w, d);
+        if (dist < best) {
+          best = dist;
           target = d;
         }
       }
@@ -61,18 +71,32 @@ const Engine = {
       if (target) this.moveToward(w, target);
       else this.moveRandom(w);
 
+      if (best < 2 && target) {
+        target.energy -= 1;
+        w.energy += 2;
+      }
+
       w.energy -= w.genes.metabolism;
     }
 
-    // deer
+    // -------------------
+    // DEER
+    // -------------------
     for (const d of deer) {
 
-      const visible = this.getVisible(d, wolves);
+      this.eatPlant(d, world);
+
+      const wolvesVisible = wolves.filter(w =>
+        this.dist(d, w) <= d.genes.vision
+      );
 
       let danger = null;
+      let best = 999;
 
-      for (const w of visible) {
-        if (!danger || this.dist(d, w) < this.dist(d, danger)) {
+      for (const w of wolvesVisible) {
+        const dist = this.dist(d, w);
+        if (dist < best) {
+          best = dist;
           danger = w;
         }
       }
