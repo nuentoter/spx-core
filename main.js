@@ -3,24 +3,19 @@ import { Engine } from "./core/engine.js";
 import { Render } from "./core/render.js";
 import { Camera } from "./core/camera.js";
 
-// =======================
-// SETUP
-// =======================
-
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// expose globally for modules that need it
 window.canvas = canvas;
 window.ctx = ctx;
 window.Camera = Camera;
 
-// =======================
-// INPUT (PAN + ZOOM)
-// =======================
+// -------------------
+// INPUT
+// -------------------
 
 let pointers = new Map();
 let lastDist = null;
@@ -40,6 +35,7 @@ canvas.addEventListener("pointermove", (e) => {
 
   const prev = pointers.get(e.pointerId);
   const curr = { x: e.clientX, y: e.clientY };
+
   pointers.set(e.pointerId, curr);
 
   const arr = [...pointers.values()];
@@ -64,9 +60,9 @@ canvas.addEventListener("pointermove", (e) => {
   }
 });
 
-// =======================
+// -------------------
 // LOOP
-// =======================
+// -------------------
 
 let last = 0;
 let acc = 0;
