@@ -2,25 +2,28 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SPX</title>
+  <title>SPX Ecosystem Core</title>
   <style>
     body {
       margin: 0;
       background: #0b0f14;
       overflow: hidden;
-      color: white;
       font-family: monospace;
+      color: white;
     }
+
     canvas {
       display: block;
     }
+
     #hud {
       position: absolute;
       top: 10px;
       left: 10px;
       font-size: 12px;
       background: rgba(0,0,0,0.4);
-      padding: 6px;
+      padding: 8px;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -30,6 +33,11 @@
 <div id="hud"></div>
 
 <script>
+
+// =======================
+// CANVAS
+// =======================
+
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 
@@ -38,16 +46,68 @@ canvas.height = window.innerHeight;
 
 const SIZE = 20;
 
-// ----------------------
+// =======================
+// CAMERA
+// =======================
+
+const Camera = {
+  x: 0,
+  y: 0,
+  zoom: 1
+};
+
+let isDragging = false;
+let lastX = 0;
+let lastY = 0;
+
+canvas.addEventListener("mousedown", (e) => {
+  isDragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+
+canvas.addEventListener("mouseup", () => isDragging = false);
+
+canvas.addEventListener("mousemove", (e) => {
+  if (!isDragging) return;
+
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+
+  Camera.x -= dx / Camera.zoom;
+  Camera.y -= dy / Camera.zoom;
+
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+
+  const zoomFactor = 1.1;
+
+  if (e.deltaY < 0) Camera.zoom *= zoomFactor;
+  else Camera.zoom /= zoomFactor;
+
+  Camera.zoom = Math.max(0.5, Math.min(4, Camera.zoom));
+});
+
+// =======================
 // WORLD
-// ----------------------
+// =======================
 
 const World = {
+
   entities: {
-    wolf_1: { x: 5, y: 5, type: "wolf", energy: 10 },
-    deer_1: { x: 15, y: 10, type: "deer", energy: 10 },
-    deer_2: { x: 20, y: 12, type: "deer", energy: 10 }
+    wolf_1: { x: 5, y: 5, type: "wolf", energy: 12 },
+    wolf_2: { x: 8, y: 6, type: "wolf", energy: 12 },
+
+    deer_1: { x: 15, y: 10, type: "deer", energy: 12 },
+    deer_2: { x: 20, y: 12, type: "deer", energy: 12 },
+    deer_3: { x: 18, y: 14, type: "deer", energy: 12 }
   },
+
+  food: [],
 
   removeDead() {
     for (const id in this.entities) {
@@ -55,12 +115,28 @@ const World = {
         delete this.entities[id];
       }
     }
+  },
+
+  addEntity(type, x, y, energy = 10) {
+    const id = type + "_" + Math.random().toString(36).slice(2, 8);
+    this.entities[id] = { x, y, type, energy };
+  },
+
+  addFood() {
+    if (this.food.length > 80) return;
+
+    if (Math.random() < 0.3) {
+      this.food.push({
+        x: (Math.random() * 30) | 0,
+        y: (Math.random() * 20) | 0
+      });
+    }
   }
 };
 
-// ----------------------
+// =======================
 // ENGINE
-// ----------------------
+// =======================
 
 const Engine = {
 
@@ -84,7 +160,38 @@ const Engine = {
     if (r === 3) a.y--;
   },
 
+  eatFood(entity, world) {
+    for (let i = 0; i < world.food.length; i++) {
+      const f = world.food[i];
+
+      if (this.dist(entity, f) < 2) {
+        entity.energy += 5;
+        world.food.splice(i, 1);
+        return;
+      }
+    }
+  },
+
+  tryReproduce(world, entity) {
+    if (entity.energy < 20) return;
+    if (Math.random() < 0.985) return;
+
+    entity.energy *= 0.5;
+
+    const offsetX = (Math.random() * 4 - 2) | 0;
+    const offsetY = (Math.random() * 4 - 2) | 0;
+
+    world.addEntity(
+      entity.type,
+      entity.x + offsetX,
+      entity.y + offsetY,
+      entity.energy
+    );
+  },
+
   update(world) {
+
+    world.addFood();
 
     const entities = world.entities;
 
@@ -97,7 +204,9 @@ const Engine = {
       if (e.type === "deer") deer.push(e);
     }
 
-    // wolves
+    // ----------------------
+    // WOLVES
+    // ----------------------
     for (const w of wolves) {
 
       let closest = null;
@@ -123,10 +232,16 @@ const Engine = {
       }
 
       w.energy -= 0.05;
+      this.tryReproduce(world, w);
     }
 
-    // deer
+    // ----------------------
+    // DEER
+    // ----------------------
     for (const d of deer) {
+
+      // eat food FIRST (critical new rule)
+      this.eatFood(d, world);
 
       let closestWolf = null;
       let best = 999;
@@ -150,15 +265,16 @@ const Engine = {
       }
 
       d.energy -= 0.02;
+      this.tryReproduce(world, d);
     }
 
     world.removeDead();
   }
 };
 
-// ----------------------
+// =======================
 // RENDER
-// ----------------------
+// =======================
 
 const Render = {
 
@@ -166,6 +282,20 @@ const Render = {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    ctx.save();
+
+    ctx.scale(Camera.zoom, Camera.zoom);
+    ctx.translate(-Camera.x, -Camera.y);
+
+    // FOOD (green dots)
+    for (const f of world.food) {
+      ctx.fillStyle = "lime";
+      ctx.beginPath();
+      ctx.arc(f.x * SIZE, f.y * SIZE, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ENTITIES
     for (const id in world.entities) {
       const e = world.entities[id];
 
@@ -179,26 +309,22 @@ const Render = {
       ctx.fillText(id, e.x * SIZE + 6, e.y * SIZE);
     }
 
+    ctx.restore();
+
     document.getElementById("hud").innerText =
-      "Entities: " + Object.keys(world.entities).length;
+      `Entities: ${Object.keys(world.entities).length}
+Food: ${world.food.length}
+Zoom: ${Camera.zoom.toFixed(2)}`;
   }
 };
 
-// ----------------------
+// =======================
 // LOOP
-// ----------------------
-
-function loop() {
-  Engine.update(World);
-  Render.draw(World);
-  requestAnimationFrame(loop);
-}
+// =======================
 
 let lastTime = 0;
 let accumulator = 0;
-
-// how many updates per second (lower = slower sim)
-const TICK_RATE = 4; 
+const TICK_RATE = 8;
 const STEP = 1000 / TICK_RATE;
 
 function loop(time) {
@@ -210,19 +336,18 @@ function loop(time) {
 
   accumulator += delta;
 
-  // run simulation at fixed step
   while (accumulator >= STEP) {
     Engine.update(World);
     accumulator -= STEP;
   }
 
-  // always render smoothly
   Render.draw(World);
 
   requestAnimationFrame(loop);
 }
 
 requestAnimationFrame(loop);
+
 </script>
 
 </body>
