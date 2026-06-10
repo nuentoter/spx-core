@@ -27,13 +27,21 @@ const Render = {
       }
     }
 
-    // plants
+    // plants (biomass visualization)
     for (const id in world.plants) {
       const p = world.plants[id];
 
-      ctx.fillStyle = "#66ff66";
+      const intensity = Math.min(255, p.biomass * 25);
+      ctx.fillStyle = `rgb(60, ${120 + intensity / 3}, 60)`;
+
       ctx.beginPath();
-      ctx.arc(p.x * SIZE, p.y * SIZE, 2 + p.biomass * 0.6, 0, Math.PI * 2);
+      ctx.arc(
+        p.x * SIZE,
+        p.y * SIZE,
+        2 + p.biomass * 0.7,
+        0,
+        Math.PI * 2
+      );
       ctx.fill();
     }
 
@@ -49,9 +57,11 @@ const Render = {
 
     ctx.restore();
 
+    // HUD (population pressure visibility)
     document.getElementById("hud").innerText =
-      `Wolves: ${Object.values(world.entities).filter(e=>e.type==="wolf").length}
-Deer: ${Object.values(world.entities).filter(e=>e.type==="deer").length}
+`Tick: ${world.tick}
+Wolves: ${Object.values(world.entities).filter(e => e.type === "wolf").length}
+Deer: ${Object.values(world.entities).filter(e => e.type === "deer").length}
 Plants: ${Object.keys(world.plants).length}`;
   }
 };
