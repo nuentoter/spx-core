@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SPX Ecosystem Core</title>
+  <title>SPX Island Ecosystem</title>
   <style>
     body {
       margin: 0;
@@ -45,6 +45,20 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 const SIZE = 20;
+
+// =======================
+// ISLAND BOUNDS
+// =======================
+
+const WORLD_WIDTH = 40;
+const WORLD_HEIGHT = 25;
+
+function clampEntity(e) {
+  if (e.x < 0) e.x = 0;
+  if (e.y < 0) e.y = 0;
+  if (e.x > WORLD_WIDTH) e.x = WORLD_WIDTH;
+  if (e.y > WORLD_HEIGHT) e.y = WORLD_HEIGHT;
+}
 
 // =======================
 // CAMERA
@@ -123,12 +137,12 @@ const World = {
   },
 
   addFood() {
-    if (this.food.length > 80) return;
+    if (this.food.length > 120) return;
 
-    if (Math.random() < 0.3) {
+    if (Math.random() < 0.25) {
       this.food.push({
-        x: (Math.random() * 30) | 0,
-        y: (Math.random() * 20) | 0
+        x: (Math.random() * WORLD_WIDTH) | 0,
+        y: (Math.random() * WORLD_HEIGHT) | 0
       });
     }
   }
@@ -158,6 +172,12 @@ const Engine = {
     if (r === 1) a.x--;
     if (r === 2) a.y++;
     if (r === 3) a.y--;
+  },
+
+  clamp(world) {
+    for (const id in world.entities) {
+      clampEntity(world.entities[id]);
+    }
   },
 
   eatFood(entity, world) {
@@ -204,9 +224,7 @@ const Engine = {
       if (e.type === "deer") deer.push(e);
     }
 
-    // ----------------------
     // WOLVES
-    // ----------------------
     for (const w of wolves) {
 
       let closest = null;
@@ -235,12 +253,9 @@ const Engine = {
       this.tryReproduce(world, w);
     }
 
-    // ----------------------
     // DEER
-    // ----------------------
     for (const d of deer) {
 
-      // eat food FIRST (critical new rule)
       this.eatFood(d, world);
 
       let closestWolf = null;
@@ -268,6 +283,7 @@ const Engine = {
       this.tryReproduce(world, d);
     }
 
+    this.clamp(world);
     world.removeDead();
   }
 };
@@ -287,7 +303,11 @@ const Render = {
     ctx.scale(Camera.zoom, Camera.zoom);
     ctx.translate(-Camera.x, -Camera.y);
 
-    // FOOD (green dots)
+    // ISLAND BORDER
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.strokeRect(0, 0, WORLD_WIDTH * SIZE, WORLD_HEIGHT * SIZE);
+
+    // FOOD
     for (const f of world.food) {
       ctx.fillStyle = "lime";
       ctx.beginPath();
