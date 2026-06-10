@@ -2,20 +2,20 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SPX Island Ecosystem</title>
+  <title>SPX Ecosystem Engine</title>
 
   <style>
     body {
       margin: 0;
-      background: #05070a;
       overflow: hidden;
+      background: #000;
       font-family: monospace;
       color: white;
     }
 
     canvas {
       display: block;
-      touch-action: none; /* CRITICAL */
+      touch-action: none;
     }
 
     #hud {
@@ -23,7 +23,7 @@
       top: 10px;
       left: 10px;
       font-size: 12px;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.6);
       padding: 8px;
       border-radius: 6px;
     }
@@ -35,319 +35,7 @@
 <canvas id="c"></canvas>
 <div id="hud"></div>
 
-<script>
-
-// =======================
-// SETUP
-// =======================
-
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
-
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-const SIZE = 20;
-
-// =======================
-// ISLAND SIZE
-// =======================
-
-const WORLD_WIDTH = 40;
-const WORLD_HEIGHT = 25;
-
-// =======================
-// CAMERA
-// =======================
-
-const Camera = {
-  x: 0,
-  y: 0,
-  zoom: 1
-};
-
-// =======================
-// POINTER STATE
-// =======================
-
-let pointers = new Map();
-let lastDist = null;
-
-// =======================
-// POINTER EVENTS (FIXED)
-// =======================
-
-canvas.addEventListener("pointerdown", (e) => {
-  canvas.setPointerCapture(e.pointerId);
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-});
-
-canvas.addEventListener("pointerup", (e) => {
-  pointers.delete(e.pointerId);
-  lastDist = null;
-});
-
-canvas.addEventListener("pointercancel", (e) => {
-  pointers.delete(e.pointerId);
-  lastDist = null;
-});
-
-// PAN + PINCH LOGIC
-canvas.addEventListener("pointermove", (e) => {
-
-  if (!pointers.has(e.pointerId)) return;
-
-  const prev = pointers.get(e.pointerId);
-  const curr = { x: e.clientX, y: e.clientY };
-
-  pointers.set(e.pointerId, curr);
-
-  const arr = Array.from(pointers.values());
-
-  // -----------------------
-  // SINGLE FINGER = PAN
-  // -----------------------
-  if (arr.length === 1) {
-
-    const dx = curr.x - prev.x;
-    const dy = curr.y - prev.y;
-
-    Camera.x -= dx / Camera.zoom;
-    Camera.y -= dy / Camera.zoom;
-  }
-
-  // -----------------------
-  // TWO FINGERS = PINCH ZOOM
-  // -----------------------
-  if (arr.length === 2) {
-
-    const p1 = arr[0];
-    const p2 = arr[1];
-
-    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
-
-    if (lastDist != null) {
-      const diff = dist - lastDist;
-
-      Camera.zoom *= (1 + diff * 0.005);
-      Camera.zoom = Math.max(0.4, Math.min(5, Camera.zoom));
-    }
-
-    lastDist = dist;
-  }
-});
-
-// desktop wheel fallback
-canvas.addEventListener("wheel", (e) => {
-  e.preventDefault();
-
-  const factor = e.deltaY < 0 ? 1.08 : 0.92;
-
-  Camera.zoom *= factor;
-  Camera.zoom = Math.max(0.4, Math.min(5, Camera.zoom));
-});
-
-// =======================
-// WORLD (same logic, simplified here for clarity)
-// =======================
-
-const World = {
-
-  entities: {
-    wolf_1: { x: 5, y: 5, type: "wolf", energy: 12 },
-    wolf_2: { x: 8, y: 6, type: "wolf", energy: 12 },
-
-    deer_1: { x: 15, y: 10, type: "deer", energy: 12 },
-    deer_2: { x: 20, y: 12, type: "deer", energy: 12 },
-    deer_3: { x: 18, y: 14, type: "deer", energy: 12 }
-  },
-
-  food: [],
-
-  removeDead() {
-    for (const id in this.entities) {
-      if (this.entities[id].energy <= 0) {
-        delete this.entities[id];
-      }
-    }
-  },
-
-  addEntity(type, x, y, energy = 10) {
-    const id = type + "_" + Math.random().toString(36).slice(2, 8);
-    this.entities[id] = { x, y, type, energy };
-  }
-};
-
-// =======================
-// ENGINE (unchanged core logic)
-// =======================
-
-const Engine = {
-
-  dist(a, b) {
-    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-  },
-
-  moveToward(a, b) {
-    if (a.x < b.x) a.x++;
-    else if (a.x > b.x) a.x--;
-
-    if (a.y < b.y) a.y++;
-    else if (a.y > b.y) a.y--;
-  },
-
-  moveRandom(a) {
-    const r = Math.floor(Math.random() * 4);
-    if (r === 0) a.x++;
-    if (r === 1) a.x--;
-    if (r === 2) a.y++;
-    if (r === 3) a.y--;
-  },
-
-  eatFood(entity, world) {
-    for (let i = 0; i < world.food.length; i++) {
-      const f = world.food[i];
-      if (this.dist(entity, f) < 2) {
-        entity.energy += 5;
-        world.food.splice(i, 1);
-        return;
-      }
-    }
-  },
-
-  update(world) {
-
-    if (world.food.length < 120 && Math.random() < 0.3) {
-      world.food.push({
-        x: (Math.random() * WORLD_WIDTH) | 0,
-        y: (Math.random() * WORLD_HEIGHT) | 0
-      });
-    }
-
-    const entities = world.entities;
-    const wolves = [];
-    const deer = [];
-
-    for (const id in entities) {
-      const e = entities[id];
-      if (e.type === "wolf") wolves.push(e);
-      if (e.type === "deer") deer.push(e);
-    }
-
-    for (const w of wolves) {
-      let closest = null;
-      let best = 999;
-
-      for (const d of deer) {
-        const dist = this.dist(w, d);
-        if (dist < best) {
-          best = dist;
-          closest = d;
-        }
-      }
-
-      if (closest) this.moveToward(w, closest);
-      else this.moveRandom(w);
-
-      w.energy -= 0.05;
-    }
-
-    for (const d of deer) {
-      this.eatFood(d, world);
-      d.energy -= 0.02;
-    }
-
-    world.removeDead();
-  }
-};
-
-// =======================
-// RENDER
-// =======================
-
-const Render = {
-
-  draw(world) {
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.save();
-
-    ctx.scale(Camera.zoom, Camera.zoom);
-    ctx.translate(-Camera.x, -Camera.y);
-
-    // island
-    for (let x = 0; x < WORLD_WIDTH; x++) {
-      for (let y = 0; y < WORLD_HEIGHT; y++) {
-
-        const edge =
-          x === 0 || y === 0 ||
-          x === WORLD_WIDTH - 1 ||
-          y === WORLD_HEIGHT - 1;
-
-        ctx.fillStyle = edge ? "#0b2a3a" : "#0f3d2e";
-        ctx.fillRect(x * SIZE, y * SIZE, SIZE, SIZE);
-      }
-    }
-
-    // food
-    for (const f of world.food) {
-      ctx.fillStyle = "lime";
-      ctx.beginPath();
-      ctx.arc(f.x * SIZE, f.y * SIZE, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // entities
-    for (const id in world.entities) {
-      const e = world.entities[id];
-
-      ctx.fillStyle = e.type === "wolf" ? "#ff3b3b" : "#44ff44";
-      ctx.beginPath();
-      ctx.arc(e.x * SIZE, e.y * SIZE, 6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.restore();
-
-    document.getElementById("hud").innerText =
-      `Entities: ${Object.keys(world.entities).length}
-Food: ${world.food.length}
-Zoom: ${Camera.zoom.toFixed(2)}
-Drag 1 finger = pan | 2 fingers = zoom`;
-  }
-};
-
-// =======================
-// LOOP
-// =======================
-
-let lastTime = 0;
-let acc = 0;
-const TICK_RATE = 4;
-const STEP = 1000 / TICK_RATE;
-
-function loop(t) {
-
-  if (!lastTime) lastTime = t;
-
-  const dt = t - lastTime;
-  lastTime = t;
-
-  acc += dt;
-
-  while (acc >= STEP) {
-    Engine.update(World);
-    acc -= STEP;
-  }
-
-  Render.draw(World);
-  requestAnimationFrame(loop);
-}
-
-requestAnimationFrame(loop);
-
-</script>
+<script type="module" src="./main.js"></script>
 
 </body>
 </html>
