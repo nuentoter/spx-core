@@ -1,3 +1,5 @@
+import { createPlant } from "../entities/plant.js";
+
 const Engine = {
 
   dist(a, b) {
@@ -14,6 +16,7 @@ const Engine = {
 
   moveRandom(a) {
     const r = Math.floor(Math.random() * 4);
+
     if (r === 0) a.x++;
     if (r === 1) a.x--;
     if (r === 2) a.y++;
@@ -26,8 +29,10 @@ const Engine = {
 
       if (this.dist(deer, p) < 2) {
         const bite = Math.min(1, p.biomass);
+
         p.biomass -= bite;
         deer.energy += bite * 3;
+
         return;
       }
     }
@@ -37,43 +42,40 @@ const Engine = {
 
     world.tick++;
 
-    // =========================
-    // PLANT GROWTH + REGROWTH
-    // =========================
-    let plantCount = 0;
-
+    // Plant growth
     for (const id in world.plants) {
       const p = world.plants[id];
-      plantCount++;
 
-      // slow regrowth
       if (p.biomass < p.maxBiomass) {
         p.biomass += p.growthRate;
       }
 
-      // collapse prevention: dead zones recover slowly
       if (p.biomass < 0.5 && Math.random() < 0.01) {
         p.biomass += 1.5;
       }
     }
 
-    // =========================
-    // NATURAL PLANT SPREAD
-    // =========================
+    // Plant spreading
+    const plantCount = Object.keys(world.plants).length;
+
     if (world.tick % 20 === 0 && plantCount < 60) {
 
       const keys = Object.keys(world.plants);
+
       if (keys.length > 0) {
 
-        const parent = world.plants[
-          keys[Math.floor(Math.random() * keys.length)]
-        ];
+        const parent =
+          world.plants[
+            keys[Math.floor(Math.random() * keys.length)]
+          ];
 
-        const id = "plant_" + Math.random().toString(36).slice(2, 8);
+        const id =
+          "plant_" +
+          Math.random().toString(36).slice(2, 8);
 
         world.plants[id] = createPlant(
-          parent.x + (Math.random() * 4 - 2),
-          parent.y + (Math.random() * 4 - 2)
+          parent.x + Math.floor(Math.random() * 5 - 2),
+          parent.y + Math.floor(Math.random() * 5 - 2)
         );
       }
     }
@@ -83,13 +85,12 @@ const Engine = {
 
     for (const id in world.entities) {
       const e = world.entities[id];
+
       if (e.type === "wolf") wolves.push(e);
       if (e.type === "deer") deer.push(e);
     }
 
-    // =========================
-    // WOLF BEHAVIOR
-    // =========================
+    // Wolves
     for (const w of wolves) {
 
       let target = null;
@@ -97,45 +98,47 @@ const Engine = {
 
       for (const d of deer) {
         const dist = this.dist(w, d);
+
         if (dist < best) {
           best = dist;
           target = d;
         }
       }
 
-      if (target) this.moveToward(w, target);
-      else this.moveRandom(w);
+      if (target) {
+        this.moveToward(w, target);
 
-      if (best < 2 && target) {
-        target.energy -= 1;
-        w.energy += 2;
+        if (best < 2) {
+          target.energy -= 1;
+          w.energy += 2;
+        }
+      } else {
+        this.moveRandom(w);
       }
 
-      // starvation pressure
       w.energy -= w.genes.metabolism;
 
-      // hard death spiral (important for dynamics)
       if (w.energy < 3 && Math.random() < 0.1) {
         w.energy -= 0.5;
       }
     }
 
-    // =========================
-    // DEER BEHAVIOR
-    // =========================
+    // Deer
     for (const d of deer) {
 
       this.eatPlant(d, world);
 
-      const visibleWolves = wolves.filter(w =>
-        this.dist(d, w) <= d.genes.vision
-      );
+      const visibleWolves =
+        wolves.filter(w =>
+          this.dist(d, w) <= d.genes.vision
+        );
 
       let danger = null;
       let best = 999;
 
       for (const w of visibleWolves) {
         const dist = this.dist(d, w);
+
         if (dist < best) {
           best = dist;
           danger = w;
@@ -143,19 +146,19 @@ const Engine = {
       }
 
       if (danger) {
+
         if (d.x < danger.x) d.x--;
         else if (d.x > danger.x) d.x++;
 
         if (d.y < danger.y) d.y--;
         else if (d.y > danger.y) d.y++;
+
       } else {
         this.moveRandom(d);
       }
 
-      // grazing pressure
       d.energy -= d.genes.metabolism;
 
-      // starvation cascade (important)
       if (d.energy < 2 && Math.random() < 0.05) {
         d.energy -= 0.3;
       }
