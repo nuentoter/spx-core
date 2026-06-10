@@ -55,52 +55,84 @@ const Engine = {
 
   update(world) {
 
-    const wolves = [];
-    const deer = [];
+  const entities = world.entities;
 
-    for (const id in world.entities) {
-      const e = world.entities[id];
-      if (e.type === "wolf") wolves.push(e);
-      if (e.type === "deer") deer.push(e);
-    }
+  const wolves = [];
+  const deer = [];
 
-    for (const w of wolves) {
+  for (const id in entities) {
+    const e = entities[id];
+    if (e.type === "wolf") wolves.push(e);
+    if (e.type === "deer") deer.push(e);
+  }
 
-      let closest = null;
-      let best = 999;
+  // -----------------------
+  // WOLVES = HUNTERS
+  // -----------------------
+  for (const w of wolves) {
 
-      for (const d of deer) {
-        const dist = this.dist(w, d);
-        if (dist < best) {
-          best = dist;
-          closest = d;
-        }
-      }
-
-      if (closest) {
-        this.moveToward(w, closest);
-
-        if (best < 2) {
-          closest.energy -= 1;
-          w.energy += 2;
-        }
-
-      } else {
-        this.moveRandom(w);
-      }
-
-      w.energy -= 0.05;
-    }
+    let closest = null;
+    let best = 999;
 
     for (const d of deer) {
-      this.moveRandom(d);
-      d.energy -= 0.02;
+      const dist = this.dist(w, d);
+      if (dist < best) {
+        best = dist;
+        closest = d;
+      }
     }
 
-    world.removeDead();
-  }
-};
+    if (closest) {
+      this.moveToward(w, closest);
 
+      if (best < 2) {
+        closest.energy -= 1;
+        w.energy += 2;
+      }
+
+    } else {
+      this.moveRandom(w);
+    }
+
+    w.energy -= 0.05;
+  }
+    
+
+  // -----------------------
+  // DEER = RUNNERS (NEW BEHAVIOR)
+  // -----------------------
+  for (const d of deer) {
+
+    // flee logic: run away from closest wolf
+    let closestWolf = null;
+    let best = 999;
+
+    for (const w of wolves) {
+      const dist = this.dist(d, w);
+      if (dist < best) {
+        best = dist;
+        closestWolf = w;
+      }
+    }
+
+    if (closestWolf && best < 6) {
+      // flee instead of wander
+      if (d.x < closestWolf.x) d.x--;
+      else if (d.x > closestWolf.x) d.x++;
+
+      if (d.y < closestWolf.y) d.y--;
+      else if (d.y > closestWolf.y) d.y++;
+    } else {
+      this.moveRandom(d);
+    }
+
+    d.energy -= 0.02;
+  }
+
+  world.removeDead();
+}
+};
+  
 // =======================
 // RENDER LAYER
 // =======================
