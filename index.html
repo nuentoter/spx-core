@@ -194,7 +194,35 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-loop();
+let lastTime = 0;
+let accumulator = 0;
+
+// how many updates per second (lower = slower sim)
+const TICK_RATE = 8; 
+const STEP = 1000 / TICK_RATE;
+
+function loop(time) {
+
+  if (!lastTime) lastTime = time;
+
+  const delta = time - lastTime;
+  lastTime = time;
+
+  accumulator += delta;
+
+  // run simulation at fixed step
+  while (accumulator >= STEP) {
+    Engine.update(World);
+    accumulator -= STEP;
+  }
+
+  // always render smoothly
+  Render.draw(World);
+
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
 </script>
 
 </body>
