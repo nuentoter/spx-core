@@ -15,6 +15,11 @@ export const World = {
     deer_1: createDeer(15, 10),
     deer_2: createDeer(20, 12),
     deer_3: createDeer(18, 14)
+  }
+    plants: {
+  plant_1: createPlant(10, 10),
+  plant_2: createPlant(15, 7),
+  plant_3: createPlant(25, 14)
   },
 
   food: [],
