@@ -1,5 +1,9 @@
-import { createWolf, createDeer } from "../entities/species.js";
-
+import {
+  createWolf,
+  createDeer,
+  createPlant
+}
+from "../entities/registry.js";
 export const World = {
   width: 40,
   height: 25,
